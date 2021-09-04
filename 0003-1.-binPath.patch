@@ -1,0 +1,104 @@
+From 1f44c45d36cd50d28bb2ec8675ba3ed0adbadf04 Mon Sep 17 00:00:00 2001
+From: 6-1 <xv6@xv6.com>
+Date: Sun, 29 Aug 2021 01:18:52 +0800
+Subject: [PATCH 3/4] 1. binPath 2. stdin stdout 3. pipe
+
+---
+ sh.c | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 52 insertions(+), 3 deletions(-)
+
+diff --git a/sh.c b/sh.c
+index 87e3b5a..a9c0949 100644
+--- a/sh.c
++++ b/sh.c
+@@ -39,6 +39,8 @@ struct pipecmd {
+ 
+ int fork1(void);  // Fork but exits on failure.
+ struct cmd *parsecmd(char*);
++const char* binPath[]={"/bin/","/usr/bin/"};
++int binCnt= sizeof(binPath)/sizeof(binPath[0]);
+ 
+ // Execute cmd.  Never returns.
+ void
+@@ -48,6 +50,7 @@ runcmd(struct cmd *cmd)
+   struct execcmd *ecmd;
+   struct pipecmd *pcmd;
+   struct redircmd *rcmd;
++  int found = 0;
+ 
+   if(cmd == 0)
+     _exit(0);
+@@ -62,21 +65,67 @@ runcmd(struct cmd *cmd)
+     if(ecmd->argv[0] == 0)
+       _exit(0);
+ 
+-  #  execv(ecmd->argv[0], ecmd->argv);
++    if(access(ecmd->argv[0], F_OK)==0){
++
++        execv(ecmd->argv[0], ecmd->argv);
++        exit(0);
++    }
++    else{
++        char *abspath;
++        int pathlen;
++        for(int i=0;i<binCnt&&found==0;i++){
++            pathlen = strlen(binPath[i])+strlen(ecmd->argv[0]);
++            abspath=(char*)malloc((pathlen+1)*sizeof(char));
++            strcpy(abspath, binPath[i]);
++            strcat(abspath, ecmd->argv[0]);
++            fprintf(stdout,"%s \n",abspath);
++            if(access(abspath,F_OK) == 0){
++                execv(abspath,ecmd->argv);
++                found = 1;
++            }
++        }
++        if(found = 0){
++            fprintf(stderr, " cmd not found! \n");
++        }
++    }
+     break;
+ 
+   case '>':
+   case '<':
+     rcmd = (struct redircmd*)cmd;
+-    fprintf(stderr, "redir not implemented\n");
+     // Your code here ...
++    close(rcmd->fd);
++    if(open(rcmd->file, rcmd->flags, 0644)<0){
++        fprintf(stderr, "file open fail\n");
++        exit(0);
++    }
++
+     runcmd(rcmd->cmd);
+     break;
+ 
+   case '|':
+     pcmd = (struct pipecmd*)cmd;
+-    fprintf(stderr, "pipe not implemented\n");
+     // Your code here ...
++    pipe(p);
++    if(fork1()==0){
++        close(1);
++        dup(p[1]);
++        close(p[0]);
++        close(p[1]);
++        runcmd(pcmd->left);
++    }
++    else{
++        close(0);
++        dup(p[0]);
++        close(p[0]);
++        close(p[1]);
++        runcmd(pcmd->right);
++    }
++
++
++    wait(&r);
++    wait(&r);
++
+     break;
+   }    
+   _exit(0);
+-- 
+2.17.1
+
