@@ -1,0 +1,6 @@
+[submodule "lab"]
+	path = lab
+	url = https://pdos.csail.mit.edu/6.828/2018/jos.git
+[submodule "qemu"]
+	path = qemu
+	url = https://github.com/mit-pdos/6.828-qemu.git
